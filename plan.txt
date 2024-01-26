@@ -1,0 +1,5 @@
+main surface + sidebar surface ^
+function to check the position of mouse as which surface it is on ^
+make move handling only happens on main surface ^
+draw the buttons on sidebar
+connect the buttons to corresponding functions

@@ -5,9 +5,11 @@ determining the valid moves at the current state. It will also keep a move log.
 
 import pygame as p
 import ChessEngine
+import buttons
 
 
 WIDTH = HEIGHT = 512 # 400 is another option
+SIDEBAR_WIDTH = 256
 DIMENSION = 8 # dimension of a chess board
 SQ_SIZE = HEIGHT // DIMENSION
 MAX_FPS = 15 # for animations
@@ -24,13 +26,26 @@ def loadImages():
         IMAGES[piece] = p.transform.scale(p.image.load("./pictures/" + piece + ".png"), (SQ_SIZE,SQ_SIZE))
     IMAGES['selected'] = p.transform.scale(p.image.load("./pictures/selected.png"), (SQ_SIZE, SQ_SIZE))
     # Note we can access an img by saying 'IMAGES['wP']'
+    
+def on_mainscreen(pos):
+    if pos[0]<=WIDTH:
+        return True
+    else:
+        return False
 
 '''
 The main driver for our code. This will handle user input and updating the graphics
 '''
 def main():
     p.init()
-    screen = p.display.set_mode((WIDTH, HEIGHT))
+    # main screen
+    screen = p.display.set_mode((WIDTH + SIDEBAR_WIDTH, HEIGHT))
+    # side bar
+    # need to only allow move to happen only on main screen, utilities to happen only on side bar
+    sidebar = p.surface.Surface((SIDEBAR_WIDTH, HEIGHT))
+    sidebar_rect = sidebar.get_rect()
+    sidebar_rect.x = WIDTH
+    sidebar_rect.y = 0
     clock = p.time.Clock()
     screen.fill(p.Color("white"))
     gs = ChessEngine.GameState()
@@ -58,86 +73,87 @@ def main():
             # quit the program
             if e.type == p.QUIT:
                 running = False
-            # handle mouse clicks (moves)
-            elif e.type == p.MOUSEBUTTONDOWN:
-                # get position where the mouse clicked
-                location = p.mouse.get_pos()
-                col = location[0] // SQ_SIZE
-                row = location[1] // SQ_SIZE
-                # if this is the first click
-                if len(start_to_end) == 0:
-                    if gs.whiteToMove:
-                        color = "w"
-                    else:
-                        color = "b"
-                    # only a valid move if a square with piece is clicked
-                    if gs.board[row][col] != "--" and gs.board[row][col][0] == color:
-                        start_to_end.append((row, col))
-                        select_square = (row, col)
-                # if this is the second click
-                else:
-                    # check if the same square is clicked twice
-                    if (row, col) == start_to_end[0]:
-                        start_to_end = []
-                        select_square = (-1, -1)
-                    else:
-                        start_to_end.append((row, col))
-                        # make a move
-                        move = ChessEngine.Move(start_to_end[0], start_to_end[1], gs.board)
-                        # switch to another piece if we click another piece
-                        if (gs.whiteToMove and gs.board[row][col][0] == "w") or \
-                                (not gs.whiteToMove and gs.board[row][col][0] == "b"):
-                            select_square = (row, col)
-                            start_to_end = [(row, col)]
-                        # if not selected another piece, then check if this move is valid
+            if on_mainscreen(p.mouse.get_pos()):
+                # handle mouse clicks (moves)
+                if e.type == p.MOUSEBUTTONDOWN:
+                    # get position where the mouse clicked
+                    location = p.mouse.get_pos()
+                    col = location[0] // SQ_SIZE
+                    row = location[1] // SQ_SIZE
+                    # if this is the first click
+                    if len(start_to_end) == 0:
+                        if gs.whiteToMove:
+                            color = "w"
                         else:
-                            for i in range(len(valid_moves)):
-                                if move == valid_moves[i]:
-                                    # handle pawn promotion choice
-                                    if valid_moves[i].promoted_piece != "--":
-                                        promotion_choice(screen, gs, clock, valid_moves[i])
-                                    else:
-                                        # use the engine generated move since it has additional info to it
-                                        gs.make_move(valid_moves[i])
-                                    # generate notation (only played moves generate notation
-                                    # imaginary moves that are for validating another move don't trigger notation)
-                                    gs.notation(valid_moves[i])
-                                    move_made = True
-                                    do_animation = True
+                            color = "b"
+                        # only a valid move if a square with piece is clicked
+                        if gs.board[row][col] != "--" and gs.board[row][col][0] == color:
+                            start_to_end.append((row, col))
+                            select_square = (row, col)
+                    # if this is the second click
+                    else:
+                        # check if the same square is clicked twice
+                        if (row, col) == start_to_end[0]:
+                            start_to_end = []
+                            select_square = (-1, -1)
+                        else:
+                            start_to_end.append((row, col))
+                            # make a move
+                            move = ChessEngine.Move(start_to_end[0], start_to_end[1], gs.board)
+                            # switch to another piece if we click another piece
+                            if (gs.whiteToMove and gs.board[row][col][0] == "w") or \
+                                    (not gs.whiteToMove and gs.board[row][col][0] == "b"):
+                                select_square = (row, col)
+                                start_to_end = [(row, col)]
+                            # if not selected another piece, then check if this move is valid
+                            else:
+                                for i in range(len(valid_moves)):
+                                    if move == valid_moves[i]:
+                                        # handle pawn promotion choice
+                                        if valid_moves[i].promoted_piece != "--":
+                                            promotion_choice(screen, gs, clock, valid_moves[i])
+                                        else:
+                                            # use the engine generated move since it has additional info to it
+                                            gs.make_move(valid_moves[i])
+                                        # generate notation (only played moves generate notation
+                                        # imaginary moves that are for validating another move don't trigger notation)
+                                        gs.notation(valid_moves[i])
+                                        move_made = True
+                                        do_animation = True
+                                        start_to_end = []
+                                        select_square = (row, col)
+                                        break
+                                # if this move is not valid, clear piece selection
+                                if not move_made:
                                     start_to_end = []
-                                    select_square = (row, col)
-                                    break
-                            # if this move is not valid, clear piece selection
-                            if not move_made:
-                                start_to_end = []
-                                select_square = (-1, -1)
+                                    select_square = (-1, -1)
 
-            # handle un-moves
-            elif e.type == p.KEYDOWN:
-                if e.key == p.K_z:
-                    gs.unmove()
-                    do_animation = False
-                    select_square = (-1, -1)
-                    move_made = True
-                # handle reset
-                elif e.key == p.K_r:
-                    # get new game state object
-                    gs = ChessEngine.GameState()
-                    # reset parameters
-                    move_made = False
-                    select_square = (-1, -1)
-                    start_to_end = []
-                    do_animation = False
-                    valid_moves = gs.get_valid_moves()
-                elif e.key == p.K_f:
-                    persp_count += 1
-                    persp_count = persp_count % 4
-                    persp = persp_list[persp_count]
-        if move_made:
-            if do_animation and ENABLE_ANIMATION:
-                draw_animation(screen, gs, gs.moveLog[-1], clock)
-            valid_moves = gs.get_valid_moves()
-            move_made = False
+                # handle un-moves
+                elif e.type == p.KEYDOWN:
+                    if e.key == p.K_z:
+                        gs.unmove()
+                        do_animation = False
+                        select_square = (-1, -1)
+                        move_made = True
+                    # handle reset
+                    elif e.key == p.K_r:
+                        # get new game state object
+                        gs = ChessEngine.GameState()
+                        # reset parameters
+                        move_made = False
+                        select_square = (-1, -1)
+                        start_to_end = []
+                        do_animation = False
+                        valid_moves = gs.get_valid_moves()
+                    elif e.key == p.K_f:
+                        persp_count += 1
+                        persp_count = persp_count % 4
+                        persp = persp_list[persp_count]
+            if move_made:
+                if do_animation and ENABLE_ANIMATION:
+                    draw_animation(screen, gs, gs.moveLog[-1], clock)
+                valid_moves = gs.get_valid_moves()
+                move_made = False
         draw_game_state(screen, gs, valid_moves, select_square, persp)
         draw_selected(screen, select_square)
         # determine the game result
@@ -149,6 +165,8 @@ def main():
         if gs.stalemate:
             draw_text(screen, gs, "game concluded with a stalemate")
         clock.tick(MAX_FPS)
+        sidebar.fill("white")
+        screen.blit(sidebar, sidebar_rect)
         p.display.flip()
 
 
