@@ -46,6 +46,8 @@ def main():
     sidebar_rect = sidebar.get_rect()
     sidebar_rect.x = WIDTH
     sidebar_rect.y = 0
+    # create buttons
+    b1 = buttons.Button(64, 50, 128, 40, "undo")
     clock = p.time.Clock()
     screen.fill(p.Color("white"))
     gs = ChessEngine.GameState()
@@ -68,11 +70,15 @@ def main():
     persp_list = ('n', 'e', 'w', 'b')
     persp_count = 0
     persp = persp_list[persp_count]
+    
     while running:
+        sidebar.fill("white")
+        
         for e in p.event.get():
             # quit the program
             if e.type == p.QUIT:
                 running = False
+            # handle moves
             if on_mainscreen(p.mouse.get_pos()):
                 # handle mouse clicks (moves)
                 if e.type == p.MOUSEBUTTONDOWN:
@@ -149,11 +155,16 @@ def main():
                         persp_count += 1
                         persp_count = persp_count % 4
                         persp = persp_list[persp_count]
+
             if move_made:
                 if do_animation and ENABLE_ANIMATION:
                     draw_animation(screen, gs, gs.moveLog[-1], clock)
                 valid_moves = gs.get_valid_moves()
                 move_made = False
+        # handle menu
+        if b1.draw(sidebar):
+            print("undo")
+        screen.blit(sidebar, sidebar_rect)
         draw_game_state(screen, gs, valid_moves, select_square, persp)
         draw_selected(screen, select_square)
         # determine the game result
@@ -165,8 +176,7 @@ def main():
         if gs.stalemate:
             draw_text(screen, gs, "game concluded with a stalemate")
         clock.tick(MAX_FPS)
-        sidebar.fill("white")
-        screen.blit(sidebar, sidebar_rect)
+        
         p.display.flip()
 
 
