@@ -17,6 +17,7 @@ class UserInfo:
         self.valid_moves = self.game_state.get_valid_moves()
         self.clock = pygame.time.Clock()
         self.promotion = False
+        self.promotion_move = None
         pass
     
     # determine which screen the mouse is on
@@ -31,6 +32,9 @@ class UserInfo:
         if event.type == pygame.MOUSEBUTTONDOWN:
             pos = pygame.mouse.get_pos()
             screen_pos = self.identify_screen(pos)
+            if self.promotion:
+                self.get_promotion_choice(pos)
+                return
             if screen_pos == BOARD_SCREEN:
                 self.get_move(pos)
             elif screen_pos == MENU_SCREEN:
@@ -75,6 +79,8 @@ class UserInfo:
                         # handle pawn promotion choice
                         if self.valid_moves[i].promoted_piece != "--":
                             self.promotion = True
+                            self.promotion_move = self.valid_moves[i]
+                            return
                         else:
                             # use the engine generated move since it has additional info to it
                             self.game_state.make_move(self.valid_moves[i])
@@ -92,6 +98,37 @@ class UserInfo:
                     self.start_and_endsquare = []
                     self.if_selected = False
                 
+    def get_promotion_choice(self, pos):
+        if self.game_state.whiteToMove:
+            turn = "w"
+        else:
+            turn = "b"
+        w_margin = 4
+        h_margin = 10
+        w = 5*w_margin+w_margin*64
+        h = 64+2*h_margin
+        tlc = (WIDTH/2 - w/2, HEIGHT/2 - h/2)
+        left_corners = []
+        right_corners = []
+        top_height = tlc[1] + h_margin
+        bot_height = tlc[1] + 2 * h_margin + 64
+        pieces_list = ["N", "B", "R", "Q"]
+        for i in range(4):
+            pieces_list[i] = turn + pieces_list[i]
+            left_corners.append(tlc[0]+(1+i)*w_margin)
+            right_corners.append(tlc[0]+(1+i)*w_margin+(i+1)*64)
+        for j in range(4):
+            if (left_corners[j] <= pos[0] < right_corners[j]) and (top_height <=
+            pos[1] <= bot_height):
+                self.promotion_move.promoted_piece =  self.promotion_move.promoted_piece[0] + pieces_list[j][1]
+                self.game_state.make_move(self.promotion_move)
+                self.game_state.notation(self.promotion_move)
+                self.promotion = False
+                self.start_and_endsquare = []
+                self.if_selected = False
+                # get new valid moves
+                self.valid_moves = self.game_state.get_valid_moves()
+        pass
                     
     def get_menu_order(self, pos):
         pass
