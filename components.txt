@@ -1,0 +1,23 @@
+Model: game state class, record positions of pieces, enforce chess rules
+
+View: call functions to display things on the screen
+input: user info object (save it as a class attribute), board screen, sidebar screen
+output: manipulate screen objects 
+draw board
+draw pieces
+draw highlights
+draw promotion box
+draw text
+draw buttons
+draw sidebar
+*
+draw challenge menu
+draw waiting menu
+draw player response
+mutiplayer menu
+
+Controller:
+input: pygame events
+output: update user info object
+get move
+get main menu order
