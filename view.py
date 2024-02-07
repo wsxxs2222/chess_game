@@ -1,10 +1,22 @@
 import pygame
+import buttons
 WIDTH = HEIGHT = 512 # 400 is another option
 SIDEBAR_WIDTH = 256
 DIMENSION = 8 # dimension of a chess board
 SQ_SIZE = HEIGHT // DIMENSION
 MAX_FPS = 15
+HORI_MARGIN = int(SIDEBAR_WIDTH * 0.2)
+VERT_MARGIN = int(HEIGHT * 0.1)
+BUTTON_MARGIN = int(HEIGHT * 0.08)
 
+def compute_button_height(n):
+    return int((HEIGHT - 2 * VERT_MARGIN - (n - 1) * BUTTON_MARGIN) / n)
+
+def compute_button_width():
+    return SIDEBAR_WIDTH - 2 * HORI_MARGIN
+
+def compute_button_top(n, i):
+    return VERT_MARGIN + i * (compute_button_height(n) + BUTTON_MARGIN)
 
 class Game_display:
     def __init__(self) -> None:
@@ -15,6 +27,9 @@ class Game_display:
         # dictionary to store images
         self.images = {}
         self.load_images()
+        # buttons
+        self.main_buttons = {}
+        self.load_buttons()
         pass
     
     def load_images(self):
@@ -23,6 +38,17 @@ class Game_display:
             self.images[piece] = pygame.transform.scale(pygame.image.load("./pictures/" + piece + ".png"), (SQ_SIZE,SQ_SIZE))
             self.images['selected'] = pygame.transform.scale(pygame.image.load("./pictures/selected.png"), (SQ_SIZE, SQ_SIZE))
         # Note we can access an img by saying 'IMAGES['wP']'
+        
+    def load_buttons(self):
+        n = 6
+        button_width = compute_button_width()
+        button_height = compute_button_height(n)
+        self.main_buttons["undo"] = buttons.Button(HORI_MARGIN, compute_button_top(n, 0), button_width, button_height, "undo", 40)
+        self.main_buttons["reset"] = buttons.Button(HORI_MARGIN, compute_button_top(n, 1), button_width, button_height, "reset", 40)
+        self.main_buttons["change perspective"] = buttons.Button(HORI_MARGIN, compute_button_top(n, 2), button_width, button_height, "change perspective", 22)
+        self.main_buttons["export game"] = buttons.Button(HORI_MARGIN, compute_button_top(n, 3), button_width, button_height, "export game", 30)
+        self.main_buttons["import game"] = buttons.Button(HORI_MARGIN, compute_button_top(n, 4), button_width, button_height, "import game", 30)
+        self.main_buttons["play online"] = buttons.Button(HORI_MARGIN, compute_button_top(n, 5), button_width, button_height, "play online",30)
     
     def draw_interface(self, user_info):
         # draw board and menu on main screen
@@ -30,7 +56,7 @@ class Game_display:
         # display promotion box
         if user_info.promotion:
             self.display_promotion_box(user_info.game_state.whiteToMove)
-        self.draw_menu()
+        self.draw_menu(user_info)
         self.main_screen.blit(self.board_screen, (0, 0))
         self.main_screen.blit(self.menu_screen, (512, 0))
     
@@ -39,7 +65,7 @@ class Game_display:
         # draw squares on the board
         self.draw_board()
         self.draw_pieces(user_info.game_state)
-        if user_info.if_selected:
+        if user_info.is_selected:
             self.draw_highlight(user_info.valid_moves, user_info.square_selected)
             self.draw_selected(user_info.square_selected)
         self.display_game_result(user_info.game_state)
@@ -48,9 +74,14 @@ class Game_display:
         # add in move highlights or move suggestions
         # draw_pieces(screen, gs, persp)  # draw pieces on those squares
         
-    def draw_menu(self):
+    def draw_menu(self, user_info):
         self.menu_screen.fill(pygame.Color((234, 221, 202, 50)))
+        self.draw_buttons(user_info)
         
+    def draw_buttons(self, user_info):
+        for key in self.main_buttons:
+            if self.main_buttons[key].draw(self.menu_screen):
+                user_info.button_click(key)
     
     def draw_board(self):
         for r in range(DIMENSION):

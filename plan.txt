@@ -1,5 +1,11 @@
 main surface + sidebar surface ^
 function to check the position of mouse as which surface it is on ^
 make move handling only happens on main surface ^
-draw the buttons on sidebar
-connect the buttons to corresponding functions
+draw the buttons on sidebar ^
+connect the buttons to corresponding functions ^
+add arrows to demonstrate the last move made
+
+
+
+local network play (server or no server?)
+fog of war: changed the winning condition to king capture, change what each player can see

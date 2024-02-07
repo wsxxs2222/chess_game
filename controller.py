@@ -9,7 +9,7 @@ MENU_SCREEN = 2
 class UserInfo:
     def __init__(self) -> None:
         self.game_state = ChessEngine.GameState()
-        self.if_selected = False # see if we have already selected a square as a starting position
+        self.is_selected = False # see if we have already selected a square as a starting position
         self.square_selected = (-1, -1)
         self.start_and_endsquare = [] # record the start and end position to keep track of moves
         self.menu_state = None
@@ -18,6 +18,9 @@ class UserInfo:
         self.clock = pygame.time.Clock()
         self.promotion = False
         self.promotion_move = None
+        # load functions correspond to each button
+        self.menu_button_functions = {}
+        self.load_button_functions()
         pass
     
     # determine which screen the mouse is on
@@ -51,11 +54,11 @@ class UserInfo:
             color = "b"
         # see if we are getting start or end position
         # if get start pos, see if the clicked square has a piece of correct color
-        if not self.if_selected:
+        if not self.is_selected:
             if self.game_state.board[row][col] != "--" and self.game_state.board[row][col][0] == color:
                 self.square_selected = (row, col)
                 self.start_and_endsquare.append((row, col))
-                self.if_selected = True
+                self.is_selected = True
             pass
         # if get end pos
         else:
@@ -65,7 +68,7 @@ class UserInfo:
                 # check if the same square is clicked twice, if so, undo click
                 if (row, col) == self.start_and_endsquare[0]:
                     self.start_and_endsquare = []
-                    self.if_selected = False
+                    self.is_selected = False
                 else:
                     self.start_and_endsquare = [(row, col)]
                     self.square_selected = (row, col)
@@ -86,17 +89,14 @@ class UserInfo:
                             self.game_state.make_move(self.valid_moves[i])
                         # generate notation (only played moves generate notation
                         # imaginary moves that are for validating another move don't trigger notation)
-                        self.game_state.notation(self.valid_moves[i])
                         move_made = True
-                        # if we made a move, reset if_selected, start and end square and valid moves 
-                        self.start_and_endsquare = []
-                        self.if_selected = False
-                        self.valid_moves = self.game_state.get_valid_moves()
+                        # if we made a move, reset is_selected, start and end square and valid moves 
+                        self.after_move(self.valid_moves[i])
                         break
                 # if this move is not valid, clear piece selection
                 if not move_made:
                     self.start_and_endsquare = []
-                    self.if_selected = False
+                    self.is_selected = False
                 
     def get_promotion_choice(self, pos):
         if self.game_state.whiteToMove:
@@ -122,13 +122,50 @@ class UserInfo:
             pos[1] <= bot_height):
                 self.promotion_move.promoted_piece =  self.promotion_move.promoted_piece[0] + pieces_list[j][1]
                 self.game_state.make_move(self.promotion_move)
-                self.game_state.notation(self.promotion_move)
                 self.promotion = False
-                self.start_and_endsquare = []
-                self.if_selected = False
-                # get new valid moves
-                self.valid_moves = self.game_state.get_valid_moves()
+                self.after_move(self.promotion_move)
         pass
-                    
+    
+    # record the function correspond to each button press
+    def load_button_functions(self):
+        self.menu_button_functions["undo"]               = self.make_unmove
+        self.menu_button_functions["reset"]              = self.reset_board
+        self.menu_button_functions["change perspective"] = self.change_perspective
+        self.menu_button_functions["export game"]        = self.export_game
+        self.menu_button_functions["import game"]        = self.import_game
+        self.menu_button_functions["play online"]        = self.play_online
+        pass
+    
+    # handle the things needed to be done after a move is made
+    def after_move(self, move=None):
+        self.valid_moves = self.game_state.get_valid_moves()
+        self.is_selected = False
+        self.start_and_endsquare = []
+        # clear notation is unmove, notation if move
+        if move:
+            self.game_state.notation(move)
+        else:
+            pass
+    
+    def button_click(self, key):
+        self.menu_button_functions[key]()
+        
+    def make_unmove(self):
+        self.game_state.unmove()
+        self.after_move()
+        
+    def reset_board(self):
+        self.game_state = ChessEngine.GameState()
+        self.after_move()
+    
+    def change_perspective(self):
+        pass
+    def export_game(self):
+        pass
+    def import_game(self):
+        pass
+    def play_online(self):
+        pass
+        
     def get_menu_order(self, pos):
         pass

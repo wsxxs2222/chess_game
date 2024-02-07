@@ -4,8 +4,6 @@ determining the valid moves at the current state. It will also keep a move log.
 """
 
 import pygame
-import ChessEngine
-import buttons
 import view
 import controller
 
