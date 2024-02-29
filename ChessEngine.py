@@ -29,7 +29,7 @@ class GameState:
         self.notation_table()
         # map pieces to functions that check the squares this piece can go
         self.move_functions = {'P': self.p_moves, 'R': self.r_moves, 'N': self.n_moves, 'B': self.b_moves,
-                               'Q': self.q_moves,  'K':self.k_moves}
+                               'Q': self.q_moves, 'K':self.k_moves}
 
         # keep track of the king position
         self.wk_pos = (7, 4)
@@ -42,6 +42,13 @@ class GameState:
         # determine which kind of castle we can do at the present move
         self.cur_castle_rights = CastleRights(True, True, True, True)
         self.cr_log = [CastleRights(True, True, True, True)]
+        # for fog of war
+        self.visible_board = self.board.copy()
+        self.game_mode = "normal" # normal or fog of war
+        # the color of the player
+        self.ally_color = "w"
+        self.display_fog = [[False for j in range(8)] for i in range(8)]
+        
 
     def notation_table(self):
         # ascii number for a is 97
@@ -204,10 +211,25 @@ class GameState:
         # for status in self.cr_log:
         #     print(f"{status.wcl}, {status.wcs}, {status.bcl}, {status.bcs}",end=",")
         valid_moves = self.get_possible_moves()
-        in_check, checking_pieces, pinned_pieces = self.checks_and_pins()
+        
+        
+        
+        
+        # operate expose king rules in visible board instead of full board if we are 
+        # playing fog of war
+        # if we are in this mode, we use the visible board to substitude board
+        # and switch them back at the end of the function call
+        # if it is opponent's move then we still judge valid moves by full board
+        if self.game_mode == "fog of war":
+            self.update_visible_board(self.ally_color)
+            return valid_moves
+                
+        # get check and pin conditions so we can see which moves are valid
         # first two tuples are row and col, second tuple are attack dir row and col
         #print(f"checking_pieces: {checking_pieces}")
         #print(f"pinned pieces: {pinned_pieces}")
+        in_check, checking_pieces, pinned_pieces = self.checks_and_pins()
+        
         # in check
         if in_check:
             # single check
@@ -242,6 +264,7 @@ class GameState:
                             valid_moves.remove(valid_moves[i])
                     else:
                         valid_moves.remove(valid_moves[i])
+            # double check
             elif len(checking_pieces) == 2:
                 for i in range(len(valid_moves)-1, -1, -1):
                     if valid_moves[i].pieceMoved[1] != "K":
@@ -338,14 +361,69 @@ class GameState:
         # add in valid castle moves
         self.get_cr_moves(valid_moves)
         # if ended up with no valid moves, check if the game is checkmate or stalemate
+        # for fog of war, the game end check is in the controller (since it knows which move is actually
+        # committed by the player)
         if len(valid_moves) == 0:
             if in_check:
                 self.checkmate = True
                 # print("checkmate")
             else:
+
                 self.stalemate = True
                 # print("stalemate")
+
+        
         return valid_moves
+    
+    # get only the enemy pieces that are in our attack range
+    def update_visible_board(self, color):
+        self.display_fog = [[True for j in range(8)] for i in range(8)]
+        if color == "w":
+            opponent_color = "b"
+        else:
+            opponent_color = "w"
+        # temprary swap move order if the perspective color is different from the color that is on its turn
+        order_swapped = False
+        if color != self.get_color():
+            self.whiteToMove = not self.whiteToMove
+            order_swapped = True
+        possible_moves = self.get_possible_moves()
+        self.visible_board = [["--" for j in range(8)] for i in range(8)]
+        # add ally pieces
+        for row in range(8):
+            for col in range(8):
+                if self.board[row][col][0] == color:
+                    self.visible_board[row][col] = self.board[row][col]
+                    self.display_fog[row][col] = False
+                    
+                    # give pawn diagnal vision
+                    if self.board[row][col][1] == "P":
+                        if color == "w":
+                            if col - 1 >= 0:
+                                self.display_fog[row-1][col-1] = False
+                            if col + 1 < 8:
+                                self.display_fog[row-1][col+1] = False
+                        else:
+                            if col - 1 >= 0:
+                                self.display_fog[row+1][col-1] = False
+                            if col + 1 < 8:
+                                self.display_fog[row+1][col+1] = False
+                        
+        # add enemy pieces that are in attack range (they are in end squares of possible moves)
+        for move in possible_moves:
+            self.display_fog[move.eRow][move.eCol] = False
+            if self.board[move.eRow][move.eCol][0] == opponent_color:
+                self.visible_board[move.eRow][move.eCol] = self.board[move.eRow][move.eCol]
+        # swap back move order
+        if order_swapped:
+            self.whiteToMove = not self.whiteToMove   
+           
+    # get the color of the player who is having his turn     
+    def get_color(self):
+        if self.whiteToMove:
+            return "w"
+        else:
+            return "b"
 
     # check if a square is on the board
     def on_board(self, row, col):

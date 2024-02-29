@@ -4,8 +4,22 @@ make move handling only happens on main surface ^
 draw the buttons on sidebar ^
 connect the buttons to corresponding functions ^
 add arrows to demonstrate the last move made
+add border and mouse hovering effect to buttons
 
 
+local network play (server or no server?) ^
+2 player mode (no thread) ^
+white and black perspectives (change how we receive input and how we display pieces and highlights) ^ 
+send and receive moves ^  send format: s_pos, e_pos, promo_piece, game_res
+waiting and assign color logic ^
+change game loop logic to let user wait while opponent is making the move (add conditional statement to handle mouseclick logic to see if we are doing online game) ^
+end of game logic, switch back to main menu ^
 
-local network play (server or no server?)
-fog of war: changed the winning condition to king capture, change what each player can see
+fog of war: 
+changed the winning condition to king capture 
+change what each player can see
+
+problem: in the online normal mode, neither client is send nor receiving moves. In fow, sometimes, one player can't make move on their turns (why?)
+connect_server is threaded, other send/receive function interfere with it?
+avoid sending two messages consecutively
+stuck on white move 3?

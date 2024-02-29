@@ -32,6 +32,7 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             user_info.handle_mouseclick(event)
+            user_info.handle_key_press(event)
         game_display.draw_interface(user_info)
         pygame.display.flip()
         

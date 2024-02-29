@@ -1,11 +1,14 @@
 import pygame
 import ChessEngine
+import socket
+import threading
 WIDTH = HEIGHT = 512 # 400 is another option
 SIDEBAR_WIDTH = 256
 DIMENSION = 8 # dimension of a chess board
 SQ_SIZE = HEIGHT // DIMENSION
 BOARD_SCREEN = 1
 MENU_SCREEN = 2
+FORMAT = "utf-8"
 class UserInfo:
     def __init__(self) -> None:
         self.game_state = ChessEngine.GameState()
@@ -20,7 +23,17 @@ class UserInfo:
         self.promotion_move = None
         # load functions correspond to each button
         self.menu_button_functions = {}
+        self.mode_menu_functions = {}
         self.load_button_functions()
+        # client socket to send moves for multiplayer
+        self.client = None
+        self.is_white = None
+        # perspective
+        self.perspective = "w"
+        # state that user is in
+        # [offline, select_mode, waiting, online]
+        self.user_state = "offline"
+        
         pass
     
     # determine which screen the mouse is on
@@ -32,22 +45,44 @@ class UserInfo:
     
     # handle click of mouse
     def handle_mouseclick(self, event):
+        # if it's online and not our turn, we receive move
         if event.type == pygame.MOUSEBUTTONDOWN:
             pos = pygame.mouse.get_pos()
             screen_pos = self.identify_screen(pos)
+            # if online and opponent's turn, wait them to send move
             if self.promotion:
                 self.get_promotion_choice(pos)
                 return
             if screen_pos == BOARD_SCREEN:
                 self.get_move(pos)
+                    
             elif screen_pos == MENU_SCREEN:
-                self.get_menu_order(pos)
+                # handle main menu or different menu depend on the state
+                if self.user_state == "online":
+                    pass
+                elif self.user_state == "select_mode":
+                    pass
+                else:
+                    pass
+                    
+    def handle_key_press(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_p:
+                self.change_mode()
+                
+    def change_mode(self):
+        if self.game_state.game_mode == "normal":
+            self.game_state.game_mode = "fog of war"
+        else:
+            self.game_state.game_mode = "normal"
         
     # handle user clicks on the board
     def get_move(self, pos):
         col = pos[0] // SQ_SIZE
         row = pos[1] // SQ_SIZE
-        move_made = False
+        # case where the perspective is on black side
+        if self.perspective == "b":
+            row, col = self.symmetric_mapping(row, col)
         if self.game_state.whiteToMove:
             color = "w"
         else:
@@ -77,26 +112,61 @@ class UserInfo:
                 self.start_and_endsquare.append((row, col))
                 # make a move
                 move = ChessEngine.Move(self.start_and_endsquare[0], self.start_and_endsquare[1], self.game_state.board)
-                for i in range(len(self.valid_moves)):
-                    if move == self.valid_moves[i]:
-                        # handle pawn promotion choice
-                        if self.valid_moves[i].promoted_piece != "--":
-                            self.promotion = True
-                            self.promotion_move = self.valid_moves[i]
-                            return
-                        else:
-                            # use the engine generated move since it has additional info to it
-                            self.game_state.make_move(self.valid_moves[i])
-                        # generate notation (only played moves generate notation
-                        # imaginary moves that are for validating another move don't trigger notation)
-                        move_made = True
-                        # if we made a move, reset is_selected, start and end square and valid moves 
-                        self.after_move(self.valid_moves[i])
-                        break
+                move_made = self.handle_move(move)
                 # if this move is not valid, clear piece selection
                 if not move_made:
                     self.start_and_endsquare = []
                     self.is_selected = False
+                    
+    def handle_move(self, move):
+        move_made = False
+        for i in range(len(self.valid_moves)):
+            if move == self.valid_moves[i]:
+                # handle pawn promotion choice
+                if self.valid_moves[i].promoted_piece != "--":
+                    if move.promoted_piece == "--":
+                        self.promotion = True
+                        self.promotion_move = self.valid_moves[i]
+                        return
+                    # if we received the move and therefore know its promoted piece
+                    else:
+                        self.valid_moves[i].promoted_piece = move.promoted_piece
+                        self.game_state.make_move(self.valid_moves[i])
+                else:
+                    # use the engine generated move since it has additional info to it
+                    self.game_state.make_move(self.valid_moves[i])
+                # generate notation (only played moves generate notation
+                # imaginary moves that are for validating another move don't trigger notation)
+                move_made = True
+                # if we made a move, reset is_selected, start and end square and valid moves 
+                self.after_move(self.valid_moves[i])
+                break
+        return move_made
+    
+    def receive_move(self):
+        print("receiving move")
+        message = self.client.recv(1024).decode(FORMAT)
+        while not message:
+            message = self.client.recv(1024).decode(FORMAT)
+        if message:
+            message_list = message.split(",")
+        print(f"received {message}")
+        # 3 parts, s_pos, e_pos, promo_piece
+        s_pos = (int(message_list[0][0]), int(message_list[0][1]))
+        e_pos = (int(message_list[1][0]), int(message_list[1][1]))
+        move = ChessEngine.Move(s_pos, e_pos, self.game_state.board, promoted_piece=message[2])
+        self.handle_move(move)
+        pass
+    
+    def send_move(self, move):
+        if self.game_state.checkmate or self.game_state.stalemate:
+            game_res = "end"
+        else:
+            game_res = "--"
+        string = str(move.sRow) + str(move.sCol) + "," + str(move.eRow) + str(move.eCol) + "," + move.promoted_piece + "," + game_res
+        print(f"sending {string}")
+        self.client.send(string.encode(FORMAT))
+        pass
                 
     def get_promotion_choice(self, pos):
         if self.game_state.whiteToMove:
@@ -128,13 +198,20 @@ class UserInfo:
     
     # record the function correspond to each button press
     def load_button_functions(self):
+        # main menu buttons
         self.menu_button_functions["undo"]               = self.make_unmove
         self.menu_button_functions["reset"]              = self.reset_board
         self.menu_button_functions["change perspective"] = self.change_perspective
         self.menu_button_functions["export game"]        = self.export_game
         self.menu_button_functions["import game"]        = self.import_game
         self.menu_button_functions["play online"]        = self.play_online
+        
+        # select mode buttons
+        self.mode_menu_functions["normal"] = self.send_normal
+        self.mode_menu_functions["fog of war"] = self.send_fow
         pass
+    
+    
     
     # handle the things needed to be done after a move is made
     def after_move(self, move=None):
@@ -144,11 +221,32 @@ class UserInfo:
         # clear notation is unmove, notation if move
         if move:
             self.game_state.notation(move)
+            # wins the game if we capture king in fog of war
+            if move.pieceCaptured[1] == "K":
+                self.game_state.checkmate = True
         else:
             pass
-    
-    def button_click(self, key):
+        
+        # handle cases when we are online
+        if self.user_state == "online":
+            # send move if it was our turn and we were online
+            if self.game_state.whiteToMove != self.is_white:
+                self.send_move(move)
+            # terminate connection when the game ended
+            if self.game_state.checkmate or self.game_state.stalemate:
+                self.client.close()
+                self.user_state = "offline"
+                print("game concluded, close client socket")
+                # self.game_state = ChessEngine.GameState()
+            # receive a move if it is not our turn
+            if self.game_state.get_color() != self.game_state.ally_color:
+                self.receive_move()
+
+    def main_buttons_click(self, key):
         self.menu_button_functions[key]()
+        
+    def mode_buttons_click(self, key):
+        self.mode_menu_functions[key]()
         
     def make_unmove(self):
         self.game_state.unmove()
@@ -159,13 +257,95 @@ class UserInfo:
         self.after_move()
     
     def change_perspective(self):
+        if self.perspective == "w":
+            self.perspective = "b"
+        else:
+            self.perspective = "w"
         pass
+    
+    # map the row and column number from white perspective to black perspective
+    def symmetric_mapping(self, row, col):
+        return 7-row, 7-col
+    
     def export_game(self):
         pass
     def import_game(self):
         pass
     def play_online(self):
+        self.multiplayer()
+        pass
+    
+    def send_normal(self):
+        self.client.send("normal".encode(FORMAT))
+        self.game_state.game_mode = "normal"
+        print("normal mode selected")
+        self.user_state = "waiting"
+        
+    def send_fow(self):
+        self.client.send("fog of war".encode(FORMAT))
+        self.game_state.game_mode = "fog of war"
+        print("fog of war mode selected")
+        self.user_state = "waiting"
+        
+    def get_mode(self, pos):
         pass
         
     def get_menu_order(self, pos):
         pass
+    
+    def init_client(self):
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        
+    def connect_to_server(self):
+        # reset board when we want to play online
+        self.game_state = ChessEngine.GameState()
+        self.valid_moves = self.game_state.get_valid_moves()
+        self.user_state = "waiting"
+        print("trying to connect")
+        HOST = '172.30.108.165'
+        PORT = 9090
+        self.client.connect((HOST, PORT))
+        print("connection successful, waiting for player 2")
+        # stuck here when waiting for the other connectio
+        message = self.client.recv(1024).decode(FORMAT)
+        while not message:
+                message = self.client.recv(1024).decode(FORMAT)
+        if message == "select_mode":
+            self.user_state = "select_mode"
+            print("selecting mode")
+            # assigned color message
+            message = None
+            message = self.client.recv(1024).decode(FORMAT)
+            while not message:
+                message = self.client.recv(1024).decode(FORMAT)
+            color = message
+        else:
+            # game mode message
+            self.game_state.game_mode = message
+            print(f"received game mode {message}")
+            # assigned color message
+            message = None
+            message = self.client.recv(1024).decode(FORMAT)
+            while not message:
+                message = self.client.recv(1024).decode(FORMAT)
+            color = message
+        print(f"got assigned color {color}")
+        if color == "w":
+            self.is_white = True
+            self.game_state.ally_color = "w"
+        else:
+            self.is_white = False
+            self.game_state.ally_color = "b"
+        self.user_state = "online"
+
+        
+    def multiplayer(self):
+        self.init_client()
+        t1 = threading.Thread(target=self.connect_to_server, args=())
+        t1.start()
+        pass
+    
+    # ToDo: send move when we are online after we make a move
+    # add a function to accept assigned color by the server
+    # link multiplayer button to corresp function
+    # test if the two player mode works
