@@ -84,6 +84,10 @@ class Game_display:
     def draw_menu(self, user_info):
         self.menu_screen.fill(pygame.Color((234, 221, 202, 50)))
         if user_info.user_state == "online":
+            # draw reminder text to say that it is player's turn
+            if user_info.game_state.ally_color == user_info.game_state.get_color():
+                self.draw_text(self.menu_screen, 256, 512, "your turn to move")
+                pass
             pass
         elif user_info.user_state == "select_mode":
             self.draw_mode_buttons(user_info)
@@ -214,24 +218,24 @@ class Game_display:
             row, col = user_info.symmetric_mapping(row, col)
         self.board_screen.blit(self.images['selected'], (col * SQ_SIZE, row * SQ_SIZE))
         
-    def draw_text(self, text):
+    def draw_text(self, screen, width, height, text):
         # select font
         font = pygame.font.SysFont("Helvitca", 32, True, False)
         # select the words for text and color using the font
         text_object = font.render(text, False, pygame.Color("gray"))
         # center the text requires moving from top left corner to the tlc of the mid-point
-        text_location = pygame.Rect(0, 0, WIDTH, HEIGHT).move(WIDTH/2 - text_object.get_width()/2, HEIGHT/2 -
+        text_location = pygame.Rect(0, 0, width, height).move(width/2 - text_object.get_width()/2, height/2 -
                                                         text_object.get_height()/2)
-        self.board_screen.blit(text_object, text_location)
+        screen.blit(text_object, text_location)
         # double text for shadow effect
         text_object = font.render(text, False, pygame.Color("black"))
-        self.board_screen.blit(text_object, text_location.move(2, 2))
+        screen.blit(text_object, text_location.move(2, 2))
         
     def display_game_result(self, game_state):
         if game_state.checkmate:
             if game_state.whiteToMove:
-                self.draw_text("game concluded with a black win")
+                self.draw_text(self.board_screen, WIDTH, HEIGHT, "game concluded with a black win")
             else:
-                self.draw_text("game concluded with a white win")
+                self.draw_text(self.board_screen, WIDTH, HEIGHT, "game concluded with a white win")
         if game_state.stalemate:
-            self.draw_text(self.board_screen, "game concluded with a stalemate")
+            self.draw_text(self.board_screen, WIDTH, HEIGHT, "game concluded with a stalemate")

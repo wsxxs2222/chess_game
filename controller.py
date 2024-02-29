@@ -54,7 +54,12 @@ class UserInfo:
                 self.get_promotion_choice(pos)
                 return
             if screen_pos == BOARD_SCREEN:
-                self.get_move(pos)
+                if self.user_state == "offline":
+                    self.get_move(pos)
+                # online and my move then get move
+                elif self.user_state == "online" and self.game_state.ally_color == self.game_state.get_color():
+                    if not self.game_state.checkmate:
+                        self.get_move(pos)
                     
             elif screen_pos == MENU_SCREEN:
                 # handle main menu or different menu depend on the state
@@ -240,7 +245,9 @@ class UserInfo:
                 # self.game_state = ChessEngine.GameState()
             # receive a move if it is not our turn
             if self.game_state.get_color() != self.game_state.ally_color:
-                self.receive_move()
+                if not self.game_state.checkmate:
+                    t1 = threading.Thread(target=self.receive_move, args=())
+                    t1.start()
 
     def main_buttons_click(self, key):
         self.menu_button_functions[key]()
@@ -302,7 +309,8 @@ class UserInfo:
         self.valid_moves = self.game_state.get_valid_moves()
         self.user_state = "waiting"
         print("trying to connect")
-        HOST = '172.30.108.165'
+        # HOST = '172.30.108.165'
+        HOST = '172.26.28.223'
         PORT = 9090
         self.client.connect((HOST, PORT))
         print("connection successful, waiting for player 2")
@@ -333,10 +341,16 @@ class UserInfo:
         if color == "w":
             self.is_white = True
             self.game_state.ally_color = "w"
+            self.perspective = "w"
         else:
             self.is_white = False
             self.game_state.ally_color = "b"
+            self.perspective = "b"
         self.user_state = "online"
+        # start to receive move if we are assigned black
+        if self.game_state.ally_color == "b":
+            t1 = threading.Thread(target=self.receive_move, args=())
+            t1.start()
 
         
     def multiplayer(self):

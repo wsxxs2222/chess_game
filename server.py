@@ -42,7 +42,8 @@ def host_game(connection_sockets, game_mode):
 
 def main():
     # set up host and port
-    HOST = '172.30.108.165'
+    # HOST = '172.30.108.165'
+    HOST = '172.26.28.223'
     PORT = 9090
     # create a socket for the server
     # specify socket type and protocal
@@ -50,17 +51,18 @@ def main():
     # bind the server to ip and port
     server.bind((HOST, PORT))
     server.listen()
-    connection_socket0, address0 = server.accept()
-    print("accepted connection from p0")
-    connection_socket0.send("select_mode".encode(FORMAT))
-    print("p0 selecting mode")
-    game_mode = connection_socket0.recv(64).decode(FORMAT)
-    print(f"mode selected is {game_mode}")
-    connection_socket1, address1 = server.accept()
-    print("accepted connection from p1")
-    connection_sockets = [connection_socket0, connection_socket1]
-    time.sleep(1)
-    host_game(connection_sockets, game_mode)
+    while True:
+        connection_socket0, address0 = server.accept()
+        print("accepted connection from p0")
+        connection_socket0.send("select_mode".encode(FORMAT))
+        print("p0 selecting mode")
+        game_mode = connection_socket0.recv(64).decode(FORMAT)
+        print(f"mode selected is {game_mode}")
+        connection_socket1, address1 = server.accept()
+        print("accepted connection from p1")
+        connection_sockets = [connection_socket0, connection_socket1]
+        time.sleep(1)
+        host_game(connection_sockets, game_mode)
     server.close()
     
 if __name__ == "__main__":
