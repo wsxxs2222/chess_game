@@ -29,7 +29,7 @@ class UserInfo:
         self.client = None
         self.is_white = None
         # perspective
-        self.perspective = "w"
+        # self.perspective = "w"
         # state that user is in
         # [offline, select_mode, waiting, online]
         self.user_state = "offline"
@@ -86,7 +86,7 @@ class UserInfo:
         col = pos[0] // SQ_SIZE
         row = pos[1] // SQ_SIZE
         # case where the perspective is on black side
-        if self.perspective == "b":
+        if self.game_state.ally_color == "b":
             row, col = self.symmetric_mapping(row, col)
         if self.game_state.whiteToMove:
             color = "w"
@@ -264,10 +264,10 @@ class UserInfo:
         self.after_move()
     
     def change_perspective(self):
-        if self.perspective == "w":
-            self.perspective = "b"
+        if self.game_state.ally_color == "w":
+            self.game_state.ally_color = "b"
         else:
-            self.perspective = "w"
+            self.game_state.ally_color = "w"
         pass
     
     # map the row and column number from white perspective to black perspective
@@ -341,11 +341,9 @@ class UserInfo:
         if color == "w":
             self.is_white = True
             self.game_state.ally_color = "w"
-            self.perspective = "w"
         else:
             self.is_white = False
             self.game_state.ally_color = "b"
-            self.perspective = "b"
         self.user_state = "online"
         # start to receive move if we are assigned black
         if self.game_state.ally_color == "b":

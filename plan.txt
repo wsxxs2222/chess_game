@@ -23,3 +23,7 @@ problem: in the online normal mode, neither client is send nor receiving moves. 
 connect_server is threaded, other send/receive function interfere with it?
 avoid sending two messages consecutively
 stuck on white move 3?
+
+when the other user connected while p0 is selecting code it might cause a problem. The other player may enter connection mode but the server would not accept.
+
+fluid dynamics? physics modeling?

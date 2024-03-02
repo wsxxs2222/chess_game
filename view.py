@@ -22,6 +22,7 @@ class Game_display:
     def __init__(self) -> None:
         # create main screen, board screen, menu screen
         self.main_screen = pygame.display.set_mode((WIDTH + SIDEBAR_WIDTH, HEIGHT))
+        pygame.display.set_caption('Chess')
         self.board_screen = pygame.surface.Surface((WIDTH, HEIGHT))
         self.menu_screen = pygame.surface.Surface((SIDEBAR_WIDTH, HEIGHT))
         # dictionary to store images
@@ -121,7 +122,7 @@ class Game_display:
         if user_info.game_state.game_mode == "normal":
             for r in range(DIMENSION):
                 for c in range(DIMENSION):
-                    if user_info.perspective == "b":
+                    if user_info.game_state.ally_color == "b":
                         r1, c1 = user_info.symmetric_mapping(r, c)
                         piece = user_info.game_state.board[r1][c1]
                     else:
@@ -134,7 +135,7 @@ class Game_display:
             fog.fill((0, 0, 0, 128))
             for r in range(DIMENSION):
                 for c in range(DIMENSION):
-                    if user_info.perspective == "b":
+                    if user_info.game_state.ally_color == "b":
                         r1, c1 = user_info.symmetric_mapping(r, c)
                         piece = user_info.game_state.visible_board[r1][c1]
                     else:
@@ -144,10 +145,13 @@ class Game_display:
             # draw fog
             for r in range(DIMENSION):
                 for c in range(DIMENSION):
-                    if user_info.perspective == "b":
-                        r, c = user_info.symmetric_mapping(r, c)
-                    if user_info.game_state.display_fog[r][c]:
-                        self.board_screen.blit(fog, pygame.Rect(c * SQ_SIZE, r * SQ_SIZE, SQ_SIZE, SQ_SIZE))
+                    if user_info.game_state.ally_color == "b":
+                        r1, c1 = user_info.symmetric_mapping(r, c)
+                        if user_info.game_state.display_fog[r1][c1]:
+                            self.board_screen.blit(fog, pygame.Rect(c * SQ_SIZE, r * SQ_SIZE, SQ_SIZE, SQ_SIZE))
+                    else:
+                        if user_info.game_state.display_fog[r][c]:
+                            self.board_screen.blit(fog, pygame.Rect(c * SQ_SIZE, r * SQ_SIZE, SQ_SIZE, SQ_SIZE))
                         
     def draw_select_mode(self, user_info):
         pass
@@ -191,7 +195,7 @@ class Game_display:
         # set color
         s.fill(pygame.Color("blue"))
         row, col = user_info.square_selected
-        if user_info.perspective == "b":
+        if user_info.game_state.ally_color == "b":
             row, col = user_info.symmetric_mapping(row, col)
         
         # blit the square at the right position on the screen
@@ -204,7 +208,7 @@ class Game_display:
             start_col = move.sCol
             end_row = move.eRow
             end_col = move.eCol
-            if user_info.perspective == "b":
+            if user_info.game_state.ally_color == "b":
                 start_row, start_col = user_info.symmetric_mapping(start_row, start_col)
                 end_row, end_col = user_info.symmetric_mapping(end_row, end_col)
             if (start_row == row) and (start_col == col):
@@ -214,7 +218,7 @@ class Game_display:
         row = user_info.square_selected[0]
         col = user_info.square_selected[1]
         # if the perspective is on black, change how we map row and col
-        if user_info.perspective == "b":
+        if user_info.game_state.ally_color == "b":
             row, col = user_info.symmetric_mapping(row, col)
         self.board_screen.blit(self.images['selected'], (col * SQ_SIZE, row * SQ_SIZE))
         
